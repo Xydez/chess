@@ -35,19 +35,104 @@ impl Piece
 			pos: (y * 8 + x)
 		};
 	}
+
+	pub fn from_char(c: char, x: u8, y: u8) -> Result<Piece, ()>
+	{
+		let color = if c.is_ascii_lowercase() { Color::Black } else { Color::White };
+
+		let piece_type = match c.to_ascii_lowercase()
+		{
+			'b' => Ok(PieceType::Bishop),
+			'k' => Ok(PieceType::King),
+			'n' => Ok(PieceType::Knight),
+			'p' => Ok(PieceType::Pawn),
+			'q' => Ok(PieceType::Queen),
+			'r' => Ok(PieceType::Rook),
+			_ => Err(())
+		};
+
+		if piece_type.is_err()
+		{
+			return Err(());
+		}
+
+		return Ok(Piece::new(color, piece_type.unwrap(), x, y));
+	}
 }
 
 #[derive(Debug)]
 pub struct Board
 {
-	pieces: Vec<Piece>
+	pieces: Vec<Piece>,
+	active_color: Color,
+	black_castle_kingside: bool,
+	black_castle_queenside: bool,
+	white_castle_kingside: bool,
+	white_castle_queenside: bool
 }
 
 impl Board
 {
 	pub fn empty() -> Board
 	{
-		return Board { pieces: Vec::new() };
+		return Board
+		{
+			pieces: Vec::new(),
+			active_color: Color::White,
+			black_castle_kingside: false,
+			black_castle_queenside: false,
+			white_castle_kingside: false,
+			white_castle_queenside: false
+		};
+	}
+
+	pub fn from_fen(fen: &str) -> Result<Board, ()>
+	{
+		let mut board = Board::empty();
+
+		let parts: Vec<&str> = fen.split(" ").collect();
+		if parts.len() != 6
+		{
+			return Err(());
+		}
+
+		// 1. Piece placement
+		let ranks: Vec<&str> = parts[0].split("/").collect();
+		if ranks.len() != 8
+		{
+			return Err(());
+		}
+
+		for (y, rank) in ranks.iter().enumerate()
+		{
+			let mut x = 0;
+
+			for c in rank.chars()
+			{
+				if c.is_numeric()
+				{
+					x += c.to_string().parse::<u8>().unwrap();
+				}
+				else
+				{
+					board.add(Piece::from_char(c, x as u8, y as u8)?).unwrap();
+
+					x += 1;
+				}
+			}
+
+			if x != 8
+			{
+				return Err(());
+			}
+		}
+
+		return Ok(board); // TODO
+	}
+
+	pub fn standard() -> Board
+	{
+		return Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
 	}
 
 	pub fn piece_at(&self, x: u8, y: u8) -> Option<Piece>
@@ -104,8 +189,19 @@ impl PieceTextures
 	{
 		let mut texture_map = HashMap::new();
 
+		texture_map.insert((Color::White, PieceType::Bishop), Texture::load(Path::new("textures/lb.png")).unwrap());
 		texture_map.insert((Color::White, PieceType::King), Texture::load(Path::new("textures/lk.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Knight), Texture::load(Path::new("textures/ln.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Pawn), Texture::load(Path::new("textures/lp.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Queen), Texture::load(Path::new("textures/lq.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Rook), Texture::load(Path::new("textures/lr.png")).unwrap());
+
+		texture_map.insert((Color::Black, PieceType::Bishop), Texture::load(Path::new("textures/db.png")).unwrap());
 		texture_map.insert((Color::Black, PieceType::King), Texture::load(Path::new("textures/dk.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Knight), Texture::load(Path::new("textures/dn.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Pawn), Texture::load(Path::new("textures/dp.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Queen), Texture::load(Path::new("textures/dq.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Rook), Texture::load(Path::new("textures/dr.png")).unwrap());
 
 		return PieceTextures { texture_map };
 	}

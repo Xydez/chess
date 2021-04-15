@@ -90,11 +90,10 @@ fn main() {
 		//gl::Disable(gl::BLEND);
 		gl::Disable(gl::DEPTH_TEST);
 		gl::Enable(gl::BLEND);
-		//gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+		gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 	}
 
-	let mut board = Board::empty();
-	board.add(Piece::new(Color::White, PieceType::King, 0, 0)).unwrap();
+	let board = Board::standard();
 
 	let mut info = GameInfo {
 		last_time: glfw.get_time(),

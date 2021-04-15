@@ -1,9 +1,7 @@
 ╒════════════════════════════════╕
 │          Chess - TODO          │
 ╞════════════════════════════════╡
-│  -  Add piece rendering        │
-│       * Make the pieces        │
-│         transparent            │
+│  -  Add moves                  │
 │  -  Add legal moves            │
 │  -  Begin work on AI           │
 └────────────────────────────────┘
