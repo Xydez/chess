@@ -11,6 +11,16 @@ pub struct Pos
 	pub value: u8
 }
 
+impl std::fmt::Display for Pos
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		write!(f, "{}", self.to_algebraic())?;
+
+		return Ok(());
+	}
+}
+
 impl Pos
 {
 	pub fn new(x: u8, y: u8) -> Pos
@@ -18,6 +28,11 @@ impl Pos
 		assert!(x < 8 && y < 8);
 
 		return Pos { value: y * 8 + x };
+	}
+
+	pub fn from_index(i: u8) -> Pos
+	{
+		return Pos { value: i };
 	}
 
 	pub fn from_algebraic(value: &str) -> Result<Pos, ()>
@@ -44,7 +59,7 @@ impl Pos
 
 	pub fn to_algebraic(&self) -> String
 	{
-		return format!("{}{}", 'a' as u8 + self.x(), '1' as u8 + self.y());
+		return format!("{}{}", ('a' as u8 + self.x()) as char, ('1' as u8 + 7 - self.y()) as char);
 	}
 
 	pub fn x(&self) -> u8
@@ -70,12 +85,22 @@ pub enum Color
 	White, Black
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Piece
 {
 	piece_type: PieceType,
 	color: Color,
 	pos: Pos
+}
+
+impl std::fmt::Display for Piece
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		write!(f, "{}", self.to_char())?;
+
+		return Ok(());
+	}
 }
 
 impl Piece
@@ -109,6 +134,35 @@ impl Piece
 		}
 
 		return Ok(Piece::new(color, piece_type.unwrap(), pos));
+	}
+
+	pub fn to_char(&self) -> char
+	{
+		let letter = match self.piece_type
+		{
+			PieceType::Bishop => 'b',
+			PieceType::King => 'k',
+			PieceType::Knight => 'n',
+			PieceType::Pawn => 'p',
+			PieceType::Queen => 'q',
+			PieceType::Rook => 'r',
+		};
+
+		return match self.color
+		{
+			Color::White => letter.to_ascii_uppercase(),
+			Color::Black => letter.to_ascii_lowercase()
+		};
+	}
+
+	pub fn pos(&self) -> Pos
+	{
+		return self.pos;
+	}
+
+	pub fn color(&self) -> Color
+	{
+		return self.color;
 	}
 }
 
@@ -281,6 +335,38 @@ impl Board
 			return Ok(());
 		}
 	}
+
+	pub fn remove_at(&mut self, pos: Pos) -> Result<Piece, ()>
+	{
+		if let Some(i) = self.pieces.iter().position(|x| x.pos() == pos)
+		{
+			return Ok(self.pieces.remove(i));
+		}
+		else
+		{
+			return Err(());
+		}
+	}
+
+	pub fn make_move(&mut self, piece: &Piece, target: Pos) -> Result<(), ()>
+	{
+		if self.piece_at(target).is_some()
+		{
+			return Err(());
+		}
+
+		for piece_ref in self.pieces.iter_mut()
+		{
+			if *piece_ref == *piece
+			{
+				piece_ref.pos = target;
+
+				return Ok(());
+			}
+		}
+
+		return Err(());
+	}
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
@@ -421,7 +507,7 @@ impl BoardRenderer
 		self.aspect = aspect;
 	}
 
-	pub fn render(&mut self, board: &Board, scale: f32, cursor: Option<u8>)
+	pub fn render(&mut self, board: &Board, scale: f32, cursor: Option<Pos>)
 	{
 		let mat_view = Matrix4::new_translation(&Vector3::<f32>::new(0.0, 0.0, -1.0));
 
@@ -457,12 +543,12 @@ impl BoardRenderer
 		render_elements_instanced(&self.board_program, &self.mesh.vao, &self.mesh.ibo, 64);
 	}
 
-	fn render_cursor(&mut self, view_proj: &Matrix4<f32>, scale: f32, pos: u8)
+	fn render_cursor(&mut self, view_proj: &Matrix4<f32>, scale: f32, pos: Pos)
 	{
 		self.square_program.set_uniform("color", &Vector3::new(0.68, 0.92, 0.63)).unwrap();
 
-		let x = pos % 8;
-		let y = 7 - pos / 8;
+		let x = pos.x();
+		let y = 7 - pos.y();
 		let mat_model = Matrix4::new_scaling(scale) * Matrix4::new_translation(&Vector3::<f32>::new(x as f32 * 0.25, y as f32 * 0.25, 0.0));
 
 		self.square_program.set_uniform("mvp", &(view_proj * mat_model)).unwrap();

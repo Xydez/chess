@@ -3,25 +3,28 @@
 #![allow(dead_code)]
 
 extern crate glfw;
-use self::glfw::{ Context, Key, Action };
-
 extern crate gl;
-
 extern crate nalgebra;
+extern crate rodio;
 
 mod board;
 mod renderer;
 
+use self::glfw::{ Context, Key, Action };
+use nalgebra::{ Matrix4, Vector4, Vector3 };
+use rodio::{ source::SamplesConverter, Decoder, OutputStream, OutputStreamHandle, source::Source };
+use std::fs::File;
+use std::io::BufReader;
+
 use board::*;
 use renderer::*;
-use nalgebra::{ Matrix4, Vector4, Vector3 };
 
 // Settings
 const WINDOW_WIDTH: u32 = 640;
 const WINDOW_HEIGHT: u32 = 480;
 const WINDOW_TITLE: &'static str = "Hello, world";
 
-#[derive(Debug)]
+//#[derive(Debug)]
 struct GameInfo
 {
 	last_time: f64,
@@ -29,7 +32,9 @@ struct GameInfo
 	board_renderer: BoardRenderer,
 	window_size: (u32, u32),
 	board_scale: f64,
-	hover: Option<u8>
+	hover: Option<Pos>,
+	from_piece: Option<Piece>,
+	stream: OutputStreamHandle
 }
 
 impl GameInfo
@@ -74,6 +79,7 @@ fn main() {
 	window.set_key_polling(true);
 	window.set_framebuffer_size_polling(true);
 	window.set_cursor_pos_polling(true);
+	window.set_mouse_button_polling(true);
 	glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
 	gl::load_with(|symbol| window.get_proc_address(symbol) as *const std::ffi::c_void);
@@ -95,13 +101,17 @@ fn main() {
 
 	let board = Board::standard();
 
+	let (_stream, stream_handle) = OutputStream::try_default().expect("Could not find an audio device");
+
 	let mut info = GameInfo {
 		last_time: glfw.get_time(),
 		board,
 		board_renderer: BoardRenderer::new(WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32),
 		window_size: (WINDOW_WIDTH, WINDOW_HEIGHT),
 		board_scale: 0.8,
-		hover: None
+		hover: None,
+		from_piece: None,
+		stream: stream_handle
 	};
 
 	while !window.should_close()
@@ -168,13 +178,71 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 			
 			if x >= 0 && x < 8 && y >= 0 && y < 8
 			{
-				let i = y * 8 + x;
-
-				info.hover = Some(i as u8);
+				info.hover = Some(Pos::new(x as u8, y as u8));
 			}
 			else
 			{
 				info.hover = None;
+			}
+		},
+		glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) =>
+		{
+			match info.hover
+			{
+				Some(hover) =>
+				{
+					match info.from_piece
+					{
+						Some(from_piece) =>
+						{
+							if from_piece.pos() != hover
+							{
+								// Check if can capture first
+								if let Some(piece) = info.board.piece_at(hover)
+								{
+									if piece.color() == from_piece.color()
+									{
+										println!("Cannot capture piece {} at {} because it is the same color ({:?})", piece, piece.pos(), piece.color());
+										info.from_piece = Some(piece);
+										return;
+									}
+									else
+									{
+										let captured = info.board.remove_at(hover).unwrap();
+
+										println!("Captured piece {} (at {})", captured, captured.pos());
+									}
+								}
+
+								info.board.make_move(&from_piece, hover).expect(format!("Failed to make move {}{} (from {})", from_piece, hover, from_piece.pos()).as_str());
+
+								let source = Decoder::new(BufReader::new(File::open("sounds/move.wav").unwrap())).unwrap().convert_samples();
+	
+								info.stream.play_raw(source).unwrap();
+								println!("Made move {}{}", from_piece, hover);
+							}							
+
+							info.from_piece = None;
+							println!("from_piece = None");
+						},
+						None => {
+							match info.board.piece_at(hover)
+							{
+								Some(piece) =>
+								{
+									info.from_piece = Some(piece);
+									println!("from_piece = {} ({})", piece, hover);
+								},
+								None =>
+								{
+									info.from_piece = None;
+									println!("from_piece = None");
+								}
+							}
+						}
+					}
+				},
+				None => ()
 			}
 		},
 		_ => ()
