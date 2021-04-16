@@ -112,7 +112,6 @@ impl Window
 			{
 				glfw::WindowEvent::Key(key, scancode, action, modifiers) =>
 				{
-					// TODO: The problem is that I want to be able to mutate the window in the callback, but since the window is being used to call the callback the window cannot be mutable again..? Basically, we're battling the rust compiler...
 					match &mut self.event_callback
 					{
 						Some(callback) =>

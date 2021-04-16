@@ -85,6 +85,18 @@ pub enum Color
 	White, Black
 }
 
+impl Color
+{
+	pub fn opposite(&self) -> Color
+	{
+		return match self
+		{
+			Color::Black => Color::White,
+			Color::White => Color::Black
+		};
+	}
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Piece
 {
@@ -169,8 +181,8 @@ impl Piece
 #[derive(Debug)]
 pub struct Board
 {
+	pub active_color: Color,
 	pieces: Vec<Piece>,
-	active_color: Color,
 	black_castle_kingside: bool,
 	black_castle_queenside: bool,
 	white_castle_kingside: bool,
@@ -367,6 +379,279 @@ impl Board
 
 		return Err(());
 	}
+
+	pub fn generate_legal_moves(&self, piece: &Piece) -> Result<Vec<Pos>, ()>
+	{
+		if let Some(piece) = self.piece_at(piece.pos)
+		{
+			let moves = match piece.piece_type
+			{
+				PieceType::Rook => self.generate_straight_moves(piece.pos),
+				PieceType::Bishop => self.generate_diagonal_moves(piece.pos),
+				PieceType::Queen => self.generate_straight_moves(piece.pos).into_iter().chain(self.generate_diagonal_moves(piece.pos).into_iter()).collect(),
+				/*
+				PieceType::Queen => {
+					let mut moves = self.generate_straight_moves(piece.pos);
+					moves.append(&mut self.generate_diagonal_moves(piece.pos));
+
+					moves
+				},
+				*/
+				PieceType::King => self.generate_king_moves(piece.pos),
+				PieceType::Knight => self.generate_knight_moves(piece.pos),
+				PieceType::Pawn => self.generate_pawn_moves(piece.color, piece.pos)
+			};
+			
+			// Filter the moves 
+			let moves = moves.into_iter().filter(|pos|
+			{
+				if let Some(pos_piece) = self.piece_at(*pos)
+				{
+					if pos_piece.color() == piece.color()
+					{
+						return false;
+					}
+				}
+	
+				return true;
+			}).collect();
+
+			// TODO:
+			// After filtering the moves, add optional castling
+			// Another way is to separate castling from the legal moves
+
+			return Ok(moves);
+		}
+		else
+		{
+			return Err(());
+		}
+	}
+
+	fn generate_straight_moves(&self, pos: Pos) -> Vec<Pos>
+	{
+		let mut moves = Vec::new();
+
+		// Left
+		for x in (0..pos.x()).rev()
+		{
+			let move_pos = Pos::new(x, pos.y());
+
+			moves.push(move_pos);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+		}
+
+		// Right
+		for x in (pos.x() + 1)..8
+		{
+			let move_pos = Pos::new(x, pos.y());
+
+			moves.push(move_pos);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+		}
+
+		// Up
+		for y in (0..pos.y()).rev()
+		{
+			let move_pos = Pos::new(pos.x(), y);
+
+			moves.push(move_pos);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+		}
+
+		// Down
+		for y in (pos.y() + 1)..8
+		{
+			let move_pos = Pos::new(pos.x(), y);
+
+			moves.push(move_pos);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+		}
+
+		return moves;
+	}
+
+	fn generate_diagonal_moves(&self, pos: Pos) -> Vec<Pos>
+	{
+		let mut moves = Vec::new();
+		let mut i;
+
+		// Top left
+		i = 1;
+		loop
+		{
+			let x = pos.x() as i32 - i;
+			let y = pos.y() as i32 - i;
+
+			if x < 0 || y < 0
+			{
+				break;
+			}
+
+			moves.push(Pos::new(x as u8, y as u8));
+
+			i += 1;
+		}
+
+		// Top right
+		i = 1;
+		loop
+		{
+			let x = pos.x() as i32 + i;
+			let y = pos.y() as i32 - i;
+
+			if x > 7 || y < 0
+			{
+				break;
+			}
+
+			moves.push(Pos::new(x as u8, y as u8));
+
+			i += 1;
+		}
+
+		// Bottom right
+		i = 1;
+		loop
+		{
+			let x = pos.x() as i32 + i;
+			let y = pos.y() as i32 + i;
+
+			if x > 7 || y > 7
+			{
+				break;
+			}
+
+			moves.push(Pos::new(x as u8, y as u8));
+
+			i += 1;
+		}
+
+		// Bottom left
+		i = 1;
+		loop
+		{
+			let x = pos.x() as i32 - i;
+			let y = pos.y() as i32 + i;
+
+			if x < 0 || y > 7
+			{
+				break;
+			}
+
+			moves.push(Pos::new(x as u8, y as u8));
+
+			i += 1;
+		}
+
+		return moves;
+	}
+
+	fn generate_king_moves(&self, pos: Pos) -> Vec<Pos>
+	{
+		let mut moves = Vec::new();
+
+		for xo in -1..=1
+		{
+			for yo in -1..=1
+			{
+				let x = pos.x() as i32 + xo;
+				let y = pos.y() as i32 + yo;
+
+				if x >= 0 && x < 8 && y >= 0 && y < 8
+				{
+					moves.push(Pos::new(x as u8, y as u8));
+				}
+			}
+		}
+
+		return moves;
+	}
+
+	fn generate_knight_moves(&self, pos: Pos) -> Vec<Pos>
+	{
+		let mut moves = Vec::new();
+
+		for xo in -2..=2
+		{
+			for yo in -2..=2
+			{
+				if (xo as i32).abs().min((yo as i32).abs()) == 1 && (xo as i32).abs().max((yo as i32).abs()) == 2
+				{
+					let x = pos.x() as i32 + xo;
+					let y = pos.y() as i32 + yo;
+
+					if x >= 0 && x < 8 && y >= 0 && y < 8
+					{
+						moves.push(Pos::new(x as u8, y as u8));
+					}
+				}
+			}
+		}
+
+		return moves;
+	}
+
+	fn generate_pawn_moves(&self, color: Color, pos: Pos) -> Vec<Pos>
+	{
+		let mut moves = Vec::new();
+
+		match color
+		{
+			Color::Black =>
+			{
+				moves.push(Pos::new(pos.x(), pos.y() + 1));
+
+				if pos.y() == 1
+				{
+					moves.push(Pos::new(pos.x(), pos.y() + 2));
+				}
+			},
+			Color::White =>
+			{
+				moves.push(Pos::new(pos.x(), pos.y() - 1));
+
+				if pos.y() == 6
+				{
+					moves.push(Pos::new(pos.x(), pos.y() - 2));
+				}
+			}
+		}
+
+		return moves;
+	}
+
+	// TODO: CASTLING
+	//fn generate_castle_moves(&self,...)
+
+	pub fn is_legal_move(&self, piece: &Piece, pos: Pos) -> bool
+	{
+		for piece_move in self.generate_legal_moves(&piece).unwrap()
+		{
+			if piece_move == pos
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
@@ -485,12 +770,6 @@ impl BoardRenderer
 				-0.75, -1.00, 0.0,   1.0, 1.0,
 				-1.00, -1.00, 0.0,   0.0, 1.0
 			],
-			//texture_mesh: Mesh::with_layout(&vec![
-			//	-1.0,  1.0, 0.0,   0.0, 1.0,
-			//	 1.0,  1.0, 0.0,   1.0, 1.0,
-			//	 1.0, -1.0, 0.0,   1.0, 0.0,
-			//	-1.0, -1.0, 0.0,   0.0, 0.0
-			//],
 			&vec![
 				0, 1, 2,
 				0, 2, 3

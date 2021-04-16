@@ -197,6 +197,14 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 						{
 							if from_piece.pos() != hover
 							{
+								// Check if move is legal
+								if !info.board.is_legal_move(&from_piece, hover)
+								{
+									println!("Illegal move");
+									info.from_piece = None;
+									return;
+								}
+
 								// Check if can capture first
 								if let Some(piece) = info.board.piece_at(hover)
 								{
@@ -215,6 +223,7 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 								}
 
 								info.board.make_move(&from_piece, hover).expect(format!("Failed to make move {}{} (from {})", from_piece, hover, from_piece.pos()).as_str());
+								info.board.active_color = from_piece.color().opposite();
 
 								let source = Decoder::new(BufReader::new(File::open("sounds/move.wav").unwrap())).unwrap().convert_samples();
 	
@@ -226,12 +235,21 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 							println!("from_piece = None");
 						},
 						None => {
+							// Check if move is correct color
+
 							match info.board.piece_at(hover)
 							{
 								Some(piece) =>
 								{
-									info.from_piece = Some(piece);
-									println!("from_piece = {} ({})", piece, hover);
+									if piece.color() == info.board.active_color
+									{
+										info.from_piece = Some(piece);
+										println!("from_piece = {} ({})", piece, hover);
+									}
+									else
+									{
+										println!("Invalid color move");
+									}
 								},
 								None =>
 								{

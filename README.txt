@@ -1,8 +1,14 @@
+You need cargo installed in order to run chess. Then do the following commands.
+$ git clone https://github.com/Xydez/chess.git
+$ cd chess
+$ cargo run --release
+
 ╒════════════════════════════════╕
 │          Chess - TODO          │
 ╞════════════════════════════════╡
-│  -  Add moves                  │
 │  -  Add legal moves            │
+│  -  Add rendering of legal     │
+│     moves                      │
 │  -  Begin work on AI           │
 └────────────────────────────────┘
 
