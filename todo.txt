@@ -1,6 +1,8 @@
 ╒════════════════════════════════╕
 │          Chess - TODO          │
 ╞════════════════════════════════╡
+│  -  Complete implementation    │
+│     of FEN.                    │
 │  -  Add moves                  │
 │  -  Add legal moves            │
 │  -  Begin work on AI           │

@@ -6,6 +6,59 @@ use std::path::Path;
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct Pos
+{
+	pub value: u8
+}
+
+impl Pos
+{
+	pub fn new(x: u8, y: u8) -> Pos
+	{
+		assert!(x < 8 && y < 8);
+
+		return Pos { value: y * 8 + x };
+	}
+
+	pub fn from_algebraic(value: &str) -> Result<Pos, ()>
+	{
+		if value.len() != 2
+		{
+			return Err(());
+		}
+
+		let letter = value.chars().nth(0).unwrap();
+		if letter < 'a' || letter > 'h'
+		{
+			return Err(());
+		}
+
+		let number = value.chars().nth(1).unwrap();
+		if number < '1' || number > '8'
+		{
+			return Err(());
+		}
+
+		return Ok(Pos::new(letter as u8 - 'a' as u8, number as u8 - '1' as u8));
+	}
+
+	pub fn to_algebraic(&self) -> String
+	{
+		return format!("{}{}", 'a' as u8 + self.x(), '1' as u8 + self.y());
+	}
+
+	pub fn x(&self) -> u8
+	{
+		return self.value % 8;
+	}
+
+	pub fn y(&self) -> u8
+	{
+		return self.value / 8;
+	}
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum PieceType
 {
 	Pawn, Rook, Knight, Bishop, Queen, King
@@ -22,21 +75,20 @@ pub struct Piece
 {
 	piece_type: PieceType,
 	color: Color,
-	pos: u8
+	pos: Pos
 }
 
 impl Piece
 {
-	pub fn new(color: Color, piece_type: PieceType, x: u8, y: u8) -> Piece
+	pub fn new(color: Color, piece_type: PieceType, pos: Pos) -> Piece
 	{
 		return Piece
 		{
-			piece_type, color,
-			pos: (y * 8 + x)
+			piece_type, color, pos
 		};
 	}
 
-	pub fn from_char(c: char, x: u8, y: u8) -> Result<Piece, ()>
+	pub fn from_char(c: char, pos: Pos) -> Result<Piece, ()>
 	{
 		let color = if c.is_ascii_lowercase() { Color::Black } else { Color::White };
 
@@ -56,7 +108,7 @@ impl Piece
 			return Err(());
 		}
 
-		return Ok(Piece::new(color, piece_type.unwrap(), x, y));
+		return Ok(Piece::new(color, piece_type.unwrap(), pos));
 	}
 }
 
@@ -68,7 +120,10 @@ pub struct Board
 	black_castle_kingside: bool,
 	black_castle_queenside: bool,
 	white_castle_kingside: bool,
-	white_castle_queenside: bool
+	white_castle_queenside: bool,
+	en_passant_target: Option<Pos>,
+	halfmove_clock: usize,
+	fullmove_clock: usize
 }
 
 impl Board
@@ -82,7 +137,10 @@ impl Board
 			black_castle_kingside: false,
 			black_castle_queenside: false,
 			white_castle_kingside: false,
-			white_castle_queenside: false
+			white_castle_queenside: false,
+			en_passant_target: None,
+			halfmove_clock: 0,
+			fullmove_clock: 0
 		};
 	}
 
@@ -115,7 +173,7 @@ impl Board
 				}
 				else
 				{
-					board.add(Piece::from_char(c, x as u8, y as u8)?).unwrap();
+					board.add(Piece::from_char(c, Pos::new(x as u8, y as u8))?).unwrap();
 
 					x += 1;
 				}
@@ -127,7 +185,68 @@ impl Board
 			}
 		}
 
-		return Ok(board); // TODO
+		// 2. Active color
+		let color = match parts[1]
+		{
+			"w" => Ok(Color::White),
+			"b" => Ok(Color::Black),
+			_ => Err(())
+		};
+
+		if color.is_err()
+		{
+			return Err(());
+		}
+
+		board.active_color = color.unwrap();
+
+		// 3. Castling availability
+		if parts[2] != "-"
+		{
+			for c in parts[2].chars()
+			{
+				match c
+				{
+					'K' => { board.white_castle_kingside = true; },
+					'Q' => { board.white_castle_queenside = true; },
+					'k' => { board.black_castle_kingside = true; },
+					'q' => { board.black_castle_queenside = true; },
+					_ => { return Err(()); }
+				}
+			}
+		}
+
+		// 4. En passant target square
+		if parts[3] == "-"
+		{
+			board.en_passant_target = None;
+		}
+		else
+		{
+			let target = Pos::from_algebraic(parts[3])?;
+
+			board.en_passant_target = Some(target);
+		}
+
+		// 5. Halfmove clock
+		let halfmove = parts[4].parse::<usize>();
+		if halfmove.is_err()
+		{
+			return Err(());
+		}
+
+		board.halfmove_clock = halfmove.unwrap();
+
+		// 6. Fullmove number
+		let fullmove = parts[5].parse::<usize>();
+		if fullmove.is_err()
+		{
+			return Err(());
+		}
+
+		board.fullmove_clock = fullmove.unwrap();
+
+		return Ok(board);
 	}
 
 	pub fn standard() -> Board
@@ -135,18 +254,11 @@ impl Board
 		return Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap();
 	}
 
-	pub fn piece_at(&self, x: u8, y: u8) -> Option<Piece>
-	{
-		let i = y * 8 + x;
-
-		return self.piece_at_index(i);
-	}
-
-	pub fn piece_at_index(&self, i: u8) -> Option<Piece>
+	pub fn piece_at(&self, pos: Pos) -> Option<Piece>
 	{
 		for piece in self.pieces.iter()
 		{
-			if piece.pos == i
+			if piece.pos == pos
 			{
 				return Some(*piece);
 			}
@@ -157,7 +269,8 @@ impl Board
 
 	pub fn add(&mut self, piece: Piece) -> Result<(), ()>
 	{
-		if self.piece_at_index(piece.pos).is_some()
+		// Check if there is already a piece at the position
+		if self.piece_at(piece.pos).is_some()
 		{
 			return Err(());
 		}
@@ -360,8 +473,8 @@ impl BoardRenderer
 	{
 		self.texture_program.set_uniform("u_texture_in", self.piece_textures.get(piece).expect("Piece texture not implemented!")).unwrap();
 
-		let x = piece.pos % 8;
-		let y = 7 - piece.pos / 8;
+		let x = piece.pos.x();
+		let y = 7 - piece.pos.y();
 		let mat_model = Matrix4::new_scaling(scale) * Matrix4::new_translation(&Vector3::<f32>::new(x as f32 * 0.25, y as f32 * 0.25, 0.0));
 
 		self.texture_program.set_uniform("u_mvp", &(view_proj * mat_model)).unwrap();
