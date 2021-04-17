@@ -22,7 +22,7 @@ use renderer::*;
 // Settings
 const WINDOW_WIDTH: u32 = 640;
 const WINDOW_HEIGHT: u32 = 480;
-const WINDOW_TITLE: &'static str = "Hello, world";
+const WINDOW_TITLE: &'static str = "Chess";
 
 //#[derive(Debug)]
 struct GameInfo

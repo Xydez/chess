@@ -557,10 +557,20 @@ impl Board
 
 						rook.pos = Pos::new(3, piece.pos.y());
 					}
-				}
-
-				if piece.piece_type == PieceType::Pawn
+				} else if piece.piece_type == PieceType::Pawn
 				{
+					// Promote pawns
+					let last_rank = match piece.color
+					{
+						Color::Black => 7,
+						Color::White => 0
+					};
+					
+					if target.y() == last_rank
+					{
+						piece_ref.piece_type = PieceType::Queen;
+					}
+
 					let move_diff_y = target.y() as i32 - piece.pos.y() as i32;
 
 					// Check if double move, if so create an en passant target
