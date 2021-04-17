@@ -728,12 +728,12 @@ impl Board
 
 			let move_pos = Pos::new(x as u8, y as u8);
 
+			moves.push(move_pos);
+
 			if self.piece_at(move_pos).is_some()
 			{
 				break;
 			}
-
-			moves.push(move_pos);
 
 			i += 1;
 		}
@@ -752,12 +752,12 @@ impl Board
 
 			let move_pos = Pos::new(x as u8, y as u8);
 
+			moves.push(move_pos);
+			
 			if self.piece_at(move_pos).is_some()
 			{
 				break;
 			}
-
-			moves.push(move_pos);
 
 			i += 1;
 		}
@@ -776,12 +776,12 @@ impl Board
 
 			let move_pos = Pos::new(x as u8, y as u8);
 
+			moves.push(move_pos);
+
 			if self.piece_at(move_pos).is_some()
 			{
 				break;
 			}
-
-			moves.push(move_pos);
 
 			i += 1;
 		}
@@ -800,12 +800,12 @@ impl Board
 
 			let move_pos = Pos::new(x as u8, y as u8);
 
+			moves.push(move_pos);
+
 			if self.piece_at(move_pos).is_some()
 			{
 				break;
 			}
-
-			moves.push(move_pos);
 
 			i += 1;
 		}

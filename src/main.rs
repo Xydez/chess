@@ -33,6 +33,7 @@ struct GameInfo
 	window_size: (u32, u32),
 	board_scale: f64,
 	hover: Option<Pos>,
+	press_pos: Option<Pos>,
 	from_piece: Option<Piece>,
 	stream: OutputStreamHandle
 }
@@ -141,6 +142,7 @@ fn main() {
 		window_size: (WINDOW_WIDTH, WINDOW_HEIGHT),
 		board_scale: 0.8,
 		hover: None,
+		press_pos: None,
 		from_piece: None,
 		stream: stream_handle
 	};
@@ -226,13 +228,22 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 				},
 				None => ()
 			}
-		}
+		},
+		glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Press, _) =>
+		{
+			info.press_pos = info.hover;
+		},
 		glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) =>
 		{
 			match info.hover
 			{
 				Some(hover) =>
 				{
+					if info.hover != info.press_pos
+					{
+						return;
+					}
+
 					match info.from_piece
 					{
 						Some(from_piece) =>

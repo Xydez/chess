@@ -6,6 +6,9 @@ $ cargo run --release
 ╒════════════════════════════════╕
 │          Chess - TODO          │
 ╞════════════════════════════════╡
+│  -  Optional feature to bake   │
+│     assets into executable     │
+│  -  Drag n' drop               │
 │  -  Add rendering of legal     │
 │     moves                      │
 │  -  Begin work on AI           │
