@@ -474,6 +474,29 @@ impl Board
 			false
 		};
 
+		// Remove castling availability
+		if piece.piece_type == PieceType::King
+		{
+			match piece.color
+			{
+				Color::White =>
+				{
+					self.white_castle_kingside = false;
+					self.white_castle_queenside = false;
+				},
+				Color::Black =>
+				{
+					self.black_castle_kingside = false;
+					self.black_castle_queenside = false;
+				}
+			}
+		}
+
+		if piece.piece_type == PieceType::Rook
+		{
+			
+		}
+
 		// Find the piece in self.pieces and mutate that
 		for piece_ref in self.pieces.iter_mut()
 		{
@@ -493,6 +516,7 @@ impl Board
 					}
 					else
 					{
+						// There is no rook there
 						unimplemented!();
 					}
 				}
@@ -516,7 +540,6 @@ impl Board
 					if move_diff_y.abs() == 2
 					{
 						self.en_passant_target = Some(Pos::new(piece.pos.x(), (piece.pos.y() as i32 + move_diff_y / 2) as u8));
-						println!("En passant target is now at {}", self.en_passant_target.unwrap());
 						return Ok(());
 					}
 					else if let Some(en_passant_target) = self.en_passant_target
@@ -921,15 +944,43 @@ impl Board
 
 	pub fn is_check(&self, color: Color) -> bool
 	{
-		// TODO
 		let king_pos = self.pieces.iter().find(|piece| piece.piece_type == PieceType::King && piece.color == color).and_then(|piece| Some(piece.pos())).expect(format!("Could not find {}'s king", color).as_str());
 
-		// Iterate over all of the enemy's pieces
+		return self.is_threatened(color, king_pos);
+	}
+
+	pub fn is_checkmate(&self, color: Color) -> bool
+	{
+		if !self.is_check(color)
+		{
+			return false;
+		}
+
+		for piece in self.pieces.iter().filter(|piece| piece.color() == color)
+		{
+			for piece_move in self.generate_legal_moves(piece).unwrap()
+			{
+				let mut board = self.clone();
+				board.make_move(&piece, piece_move).unwrap();
+
+				if !board.is_check(color)
+				{
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	pub fn is_threatened(&self, color: Color, pos: Pos) -> bool
+	{
+		// Iterate over all of the pieces
 		for piece in self.pieces.iter().filter(|piece| piece.color() != color)
 		{
 			for target in self.generate_legal_moves(&piece).unwrap()
 			{
-				if target == king_pos
+				if target == pos
 				{
 					return true;
 				}
@@ -975,19 +1026,19 @@ impl PieceTextures
 	{
 		let mut texture_map = HashMap::new();
 
-		texture_map.insert((Color::White, PieceType::Bishop), Texture::load(Path::new("textures/lb.png")).unwrap());
-		texture_map.insert((Color::White, PieceType::King), Texture::load(Path::new("textures/lk.png")).unwrap());
-		texture_map.insert((Color::White, PieceType::Knight), Texture::load(Path::new("textures/ln.png")).unwrap());
-		texture_map.insert((Color::White, PieceType::Pawn), Texture::load(Path::new("textures/lp.png")).unwrap());
-		texture_map.insert((Color::White, PieceType::Queen), Texture::load(Path::new("textures/lq.png")).unwrap());
-		texture_map.insert((Color::White, PieceType::Rook), Texture::load(Path::new("textures/lr.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Bishop), Texture::load(Path::new("assets/textures/lb.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::King), Texture::load(Path::new("assets/textures/lk.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Knight), Texture::load(Path::new("assets/textures/ln.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Pawn), Texture::load(Path::new("assets/textures/lp.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Queen), Texture::load(Path::new("assets/textures/lq.png")).unwrap());
+		texture_map.insert((Color::White, PieceType::Rook), Texture::load(Path::new("assets/textures/lr.png")).unwrap());
 
-		texture_map.insert((Color::Black, PieceType::Bishop), Texture::load(Path::new("textures/db.png")).unwrap());
-		texture_map.insert((Color::Black, PieceType::King), Texture::load(Path::new("textures/dk.png")).unwrap());
-		texture_map.insert((Color::Black, PieceType::Knight), Texture::load(Path::new("textures/dn.png")).unwrap());
-		texture_map.insert((Color::Black, PieceType::Pawn), Texture::load(Path::new("textures/dp.png")).unwrap());
-		texture_map.insert((Color::Black, PieceType::Queen), Texture::load(Path::new("textures/dq.png")).unwrap());
-		texture_map.insert((Color::Black, PieceType::Rook), Texture::load(Path::new("textures/dr.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Bishop), Texture::load(Path::new("assets/textures/db.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::King), Texture::load(Path::new("assets/textures/dk.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Knight), Texture::load(Path::new("assets/textures/dn.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Pawn), Texture::load(Path::new("assets/textures/dp.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Queen), Texture::load(Path::new("assets/textures/dq.png")).unwrap());
+		texture_map.insert((Color::Black, PieceType::Rook), Texture::load(Path::new("assets/textures/dr.png")).unwrap());
 
 		return PieceTextures { texture_map };
 	}
@@ -1038,21 +1089,21 @@ impl BoardRenderer
 {
 	pub fn new(aspect: f32) -> BoardRenderer
 	{
-		let fragment = ShaderSource::load("shaders/fragment.glsl").unwrap();
+		let fragment = ShaderSource::load("assets/shaders/fragment.glsl").unwrap();
 
 		let board_program = ShaderProgramBuilder::new()
-			.vertex(ShaderSource::load("shaders/board_vertex.glsl").unwrap().compile(ShaderType::Vertex).unwrap())
+			.vertex(ShaderSource::load("assets/shaders/board_vertex.glsl").unwrap().compile(ShaderType::Vertex).unwrap())
 			.fragment(fragment.clone().compile(ShaderType::Fragment).unwrap())
 			.build().unwrap();
 
 		let square_program = ShaderProgramBuilder::new()
-			.vertex(ShaderSource::load("shaders/square_vertex.glsl").unwrap().compile(ShaderType::Vertex).unwrap())
+			.vertex(ShaderSource::load("assets/shaders/square_vertex.glsl").unwrap().compile(ShaderType::Vertex).unwrap())
 			.fragment(fragment.compile(ShaderType::Fragment).unwrap())
 			.build().unwrap();
 
 		let texture_program = ShaderProgramBuilder::new()
-			.vertex(ShaderSource::load("shaders/texture_vertex.glsl").unwrap().compile(ShaderType::Vertex).unwrap())
-			.fragment(ShaderSource::load("shaders/texture_fragment.glsl").unwrap().compile(ShaderType::Fragment).unwrap())
+			.vertex(ShaderSource::load("assets/shaders/texture_vertex.glsl").unwrap().compile(ShaderType::Vertex).unwrap())
+			.fragment(ShaderSource::load("assets/shaders/texture_fragment.glsl").unwrap().compile(ShaderType::Fragment).unwrap())
 			.build().unwrap();
 
 		return BoardRenderer {

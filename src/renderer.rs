@@ -756,7 +756,7 @@ impl Texture
 			gl!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32););
 			gl!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32););
 
-			gl!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32););
+			gl!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR_MIPMAP_LINEAR as i32););
 			gl!(gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32););
 		}
 
@@ -769,7 +769,7 @@ impl Texture
 			let image_data = image.into_raw();
 			let data_ptr = image_data.as_ptr() as *const std::ffi::c_void;
 			gl!(gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as i32, width as i32, height as i32, 0, gl::RGBA, gl::UNSIGNED_BYTE, data_ptr););
-			//gl!(gl::GenerateMipmap(gl::TEXTURE_2D););
+			gl!(gl::GenerateMipmap(gl::TEXTURE_2D););
 		}
 
 		return Ok(Texture { handle });

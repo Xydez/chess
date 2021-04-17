@@ -269,14 +269,18 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 								info.board.make_move(&from_piece, hover).expect(format!("Failed to make move {}{} (from {})", from_piece, hover, from_piece.pos()).as_str());
 								info.board.active_color = from_piece.color().opposite();
 
-								let source = Decoder::new(BufReader::new(File::open("sounds/move.wav").unwrap())).unwrap().convert_samples();
+								let source = Decoder::new(BufReader::new(File::open("assets/sounds/move.wav").unwrap())).unwrap().convert_samples();
 	
 								info.stream.play_raw(source).unwrap();
-								println!("Made move {}", move_notation(&from_piece, hover));
+								println!("{} made move {}", from_piece.color(), move_notation(&from_piece, hover));
+
+								if info.board.is_checkmate(info.board.active_color)
+								{
+									println!("CHECKMATE");
+								}
 							}		
 
 							info.from_piece = None;
-							println!("from_piece = None");
 						},
 						None => {
 							// Check if move is correct color
@@ -288,7 +292,6 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 									if piece.color() == info.board.active_color
 									{
 										info.from_piece = Some(piece);
-										println!("from_piece = {} ({})", piece, hover);
 									}
 									else
 									{
@@ -298,7 +301,6 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 								None =>
 								{
 									info.from_piece = None;
-									println!("from_piece = None");
 								}
 							}
 						}
