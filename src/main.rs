@@ -52,7 +52,40 @@ impl GameInfo
 			gl::Clear(gl::COLOR_BUFFER_BIT);
 		}
 
-		self.board_renderer.render(&self.board, self.board_scale as f32, self.hover);
+		let from_color = Vector4::new(0.68, 0.92, 0.63, 0.5);
+		let to_color = Vector4::new(0.83, 0.35, 0.07, 0.5);
+		let check_color = Vector4::new(1.0, 0.0, 0.0, 0.5);
+		self.board_renderer.render(&self.board, self.board_scale as f32);
+
+		match self.from_piece
+		{
+			Some(piece) =>
+			{
+				self.board_renderer.render_square(self.board_scale as f32, piece.pos(), from_color);
+
+				if let Some(hover) = self.hover
+				{
+					self.board_renderer.render_square(self.board_scale as f32, hover, to_color);
+				}
+			},
+			None =>
+			{
+				if let Some(hover) = self.hover
+				{
+					self.board_renderer.render_square(self.board_scale as f32, hover, from_color);
+				}
+			}
+		}
+
+		if self.board.is_check(Color::White)
+		{
+			self.board_renderer.render_square(self.board_scale as f32, self.board.find_pieces(Some(PieceType::King), Some(Color::White), None).first().unwrap().pos(), check_color);
+		}
+
+		if self.board.is_check(Color::Black)
+		{
+			self.board_renderer.render_square(self.board_scale as f32, self.board.find_pieces(Some(PieceType::King), Some(Color::Black), None).first().unwrap().pos(), check_color);
+		}
 	}
 }
 
@@ -92,9 +125,7 @@ fn main() {
 
 	unsafe
 	{
-		//gl::Enable(gl::TEXTURE_2D);
-		//gl::Disable(gl::BLEND);
-		gl::Disable(gl::DEPTH_TEST);
+		//gl::Disable(gl::DEPTH_TEST);
 		gl::Enable(gl::BLEND);
 		gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 	}
@@ -185,6 +216,17 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 				info.hover = None;
 			}
 		},
+		glfw::WindowEvent::MouseButton(glfw::MouseButtonRight, Action::Release, _) =>
+		{
+			match info.hover
+			{
+				Some(hover) =>
+				{
+					println!("{} ({}, {}) = {}", hover, hover.x(), hover.y(), hover.value);
+				},
+				None => ()
+			}
+		}
 		glfw::WindowEvent::MouseButton(glfw::MouseButtonLeft, Action::Release, _) =>
 		{
 			match info.hover
@@ -206,6 +248,7 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 								}
 
 								// Check if can capture first
+								/*
 								if let Some(piece) = info.board.piece_at(hover)
 								{
 									if piece.color() == from_piece.color()
@@ -221,6 +264,7 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 										println!("Captured piece {} (at {})", captured, captured.pos());
 									}
 								}
+								*/
 
 								info.board.make_move(&from_piece, hover).expect(format!("Failed to make move {}{} (from {})", from_piece, hover, from_piece.pos()).as_str());
 								info.board.active_color = from_piece.color().opposite();
@@ -228,8 +272,8 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 								let source = Decoder::new(BufReader::new(File::open("sounds/move.wav").unwrap())).unwrap().convert_samples();
 	
 								info.stream.play_raw(source).unwrap();
-								println!("Made move {}{}", from_piece, hover);
-							}							
+								println!("Made move {}", move_notation(&from_piece, hover));
+							}		
 
 							info.from_piece = None;
 							println!("from_piece = None");

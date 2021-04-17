@@ -79,10 +79,43 @@ pub enum PieceType
 	Pawn, Rook, Knight, Bishop, Queen, King
 }
 
+impl std::fmt::Display for PieceType
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		return match self
+		{
+			PieceType::Pawn => write!(f, "Pawn"),
+			PieceType::Rook => write!(f, "Rook"),
+			PieceType::Knight => write!(f, "Knight"),
+			PieceType::Bishop => write!(f, "Bishop"),
+			PieceType::Queen => write!(f, "Queen"),
+			PieceType::King => write!(f, "King")
+		};
+	}
+}
+
+impl PieceType
+{
+
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Color
 {
 	White, Black
+}
+
+impl std::fmt::Display for Color
+{
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
+	{
+		return match self
+		{
+			Color::White => write!(f, "White"),
+			Color::Black => write!(f, "Black"),
+		};
+	}
 }
 
 impl Color
@@ -109,7 +142,7 @@ impl std::fmt::Display for Piece
 {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result
 	{
-		write!(f, "{}", self.to_char())?;
+		write!(f, "{}", self.piece_type)?;
 
 		return Ok(());
 	}
@@ -176,9 +209,26 @@ impl Piece
 	{
 		return self.color;
 	}
+
+	pub fn piece_type(&self) -> PieceType
+	{
+		return self.piece_type;
+	}
 }
 
-#[derive(Debug)]
+pub fn move_notation(piece: &Piece, target: Pos) -> String
+{
+	if piece.piece_type() == PieceType::Pawn
+	{
+		return target.to_algebraic();
+	}
+	else
+	{
+		return format!("{}{}", piece.to_char(), target);
+	}
+}
+
+#[derive(Debug, Clone)]
 pub struct Board
 {
 	pub active_color: Color,
@@ -333,6 +383,51 @@ impl Board
 		return None;
 	}
 
+	pub fn piece_at_mut(&mut self, pos: Pos) -> Option<&mut Piece>
+	{
+		for piece in self.pieces.iter_mut()
+		{
+			if piece.pos == pos
+			{
+				return Some(piece);
+			}
+		}
+		
+		return None;
+	}
+
+	pub fn find_pieces(&self, piece_type: Option<PieceType>, color: Option<Color>, position: Option<Pos>) -> Vec<&Piece>
+	{
+		return self.pieces.iter().filter(|piece|
+		{
+			if let Some(piece_type) = piece_type
+			{
+				if piece.piece_type != piece_type
+				{
+					return false;
+				}
+			}
+
+			if let Some(color) = color
+			{
+				if piece.color != color
+				{
+					return false;
+				}
+			}
+
+			if let Some(position) = position
+			{
+				if piece.pos != position
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}).collect();
+	}
+
 	pub fn add(&mut self, piece: Piece) -> Result<(), ()>
 	{
 		// Check if there is already a piece at the position
@@ -362,17 +457,89 @@ impl Board
 
 	pub fn make_move(&mut self, piece: &Piece, target: Pos) -> Result<(), ()>
 	{
-		if self.piece_at(target).is_some()
+		// If we're moving onto a piece, capture that piece
+		let capture = if let Some(target_piece) = self.piece_at(target)
 		{
-			return Err(());
+			if target_piece.color() == piece.color()
+			{
+				// We can't capture pieces of the same color
+				return Err(());
+			}
+			
+			self.remove_at(target_piece.pos()).unwrap();
+			true
 		}
+		else
+		{
+			false
+		};
 
+		// Find the piece in self.pieces and mutate that
 		for piece_ref in self.pieces.iter_mut()
 		{
 			if *piece_ref == *piece
 			{
 				piece_ref.pos = target;
 
+				// Check if castled
+				if piece.piece_type == PieceType::King && (target.x() as i32 - piece.pos.x() as i32) == 2
+				{
+					// Castled kingside (2 squares to the right)
+					if let Some(rook) = self.piece_at_mut(Pos::new(7, piece.pos.y()))
+					{
+						assert!(rook.piece_type == PieceType::Rook);
+
+						rook.pos = Pos::new(5, piece.pos.y());
+					}
+					else
+					{
+						unimplemented!();
+					}
+				}
+				else if piece.piece_type == PieceType::King && (target.x() as i32 - piece.pos.x() as i32) == -2
+				{
+					// Castled queenside (2 squares to the left)
+
+					if let Some(rook) = self.piece_at_mut(Pos::new(0, piece.pos.y()))
+					{
+						assert!(rook.piece_type == PieceType::Rook);
+
+						rook.pos = Pos::new(3, piece.pos.y());
+					}
+				}
+
+				if piece.piece_type == PieceType::Pawn
+				{
+					let move_diff_y = target.y() as i32 - piece.pos.y() as i32;
+
+					// Check if double move, if so create an en passant target
+					if move_diff_y.abs() == 2
+					{
+						self.en_passant_target = Some(Pos::new(piece.pos.x(), (piece.pos.y() as i32 + move_diff_y / 2) as u8));
+						println!("En passant target is now at {}", self.en_passant_target.unwrap());
+						return Ok(());
+					}
+					else if let Some(en_passant_target) = self.en_passant_target
+					{
+						// If en passant was peformed, capture the piece
+						if target == en_passant_target
+						{
+							match piece.color()
+							{
+								Color::Black =>
+								{
+									self.remove_at(Pos::new(en_passant_target.x(), en_passant_target.y() - 1)).expect("Invalid en passant");
+								},
+								Color::White =>
+								{
+									self.remove_at(Pos::new(en_passant_target.x(), en_passant_target.y() + 1)).expect("Invalid en passant");
+								}
+							}
+						}
+					}
+				}
+
+				self.en_passant_target = None;
 				return Ok(());
 			}
 		}
@@ -397,7 +564,7 @@ impl Board
 					moves
 				},
 				*/
-				PieceType::King => self.generate_king_moves(piece.pos),
+				PieceType::King => self.generate_king_moves(piece.color, piece.pos),
 				PieceType::Knight => self.generate_knight_moves(piece.pos),
 				PieceType::Pawn => self.generate_pawn_moves(piece.color, piece.pos)
 			};
@@ -563,7 +730,7 @@ impl Board
 		return moves;
 	}
 
-	fn generate_king_moves(&self, pos: Pos) -> Vec<Pos>
+	fn generate_king_moves(&self, color: Color, pos: Pos) -> Vec<Pos>
 	{
 		let mut moves = Vec::new();
 
@@ -577,6 +744,46 @@ impl Board
 				if x >= 0 && x < 8 && y >= 0 && y < 8
 				{
 					moves.push(Pos::new(x as u8, y as u8));
+				}
+			}
+		}
+
+		//println!("{} {} {} {}", self.black_castle_kingside, self.black_castle_queenside, self.white_castle_kingside, self.white_castle_queenside);
+
+		// TODO
+		if color == Color::Black
+		{
+			if self.black_castle_kingside
+			{
+				if self.piece_at(Pos::new(5, 0)).is_none() && self.piece_at(Pos::new(6, 0)).is_none()
+				{
+					moves.push(Pos::new(6, 0));
+				}
+			}
+
+			if self.black_castle_queenside
+			{
+				if self.piece_at(Pos::new(1, 0)).is_none() && self.piece_at(Pos::new(2, 0)).is_none() && self.piece_at(Pos::new(3, 0)).is_none()
+				{
+					moves.push(Pos::new(2, 0));
+				}
+			}
+		}
+		else
+		{
+			if self.white_castle_kingside
+			{
+				if self.piece_at(Pos::new(5, 7)).is_none() && self.piece_at(Pos::new(6, 7)).is_none()
+				{
+					moves.push(Pos::new(6, 7));
+				}
+			}
+
+			if self.white_castle_queenside
+			{
+				if self.piece_at(Pos::new(1, 7)).is_none() && self.piece_at(Pos::new(2, 7)).is_none() && self.piece_at(Pos::new(3, 7)).is_none()
+				{
+					moves.push(Pos::new(2, 7));
 				}
 			}
 		}
@@ -614,10 +821,48 @@ impl Board
 
 		match color
 		{
+			// We don't need to check if the pawn has reached the end because it will be automatically transformed to a queen
 			Color::Black =>
 			{
+				// Normal move
 				moves.push(Pos::new(pos.x(), pos.y() + 1));
 
+				// Capture
+				if pos.x() > 0
+				{
+					if let Some(piece) = self.piece_at(Pos::new(pos.x() - 1, pos.y() + 1))
+					{
+						if piece.color != color
+						{
+							moves.push(piece.pos());
+						}
+					}
+				}
+
+				if pos.x() < 7
+				{
+					if let Some(piece) = self.piece_at(Pos::new(pos.x() + 1, pos.y() + 1))
+					{
+						if piece.color != color
+						{
+							moves.push(piece.pos());
+						}
+					}
+				}
+
+				// En passant
+				if let Some(target) = self.en_passant_target
+				{
+					if target.y() == pos.y() + 1
+					{
+						if target.x() == pos.x() + 1 || target.x() + 1 == pos.x()
+						{
+							moves.push(target);
+						}
+					}
+				}
+
+				// Double move
 				if pos.y() == 1
 				{
 					moves.push(Pos::new(pos.x(), pos.y() + 2));
@@ -625,8 +870,45 @@ impl Board
 			},
 			Color::White =>
 			{
+				// Normal move
 				moves.push(Pos::new(pos.x(), pos.y() - 1));
 
+				// Capture
+				if pos.x() > 0
+				{
+					if let Some(piece) = self.piece_at(Pos::new(pos.x() - 1, pos.y() - 1))
+					{
+						if piece.color != color
+						{
+							moves.push(piece.pos());
+						}
+					}
+				}
+
+				if pos.x() < 7
+				{
+					if let Some(piece) = self.piece_at(Pos::new(pos.x() + 1, pos.y() - 1))
+					{
+						if piece.color != color
+						{
+							moves.push(piece.pos());
+						}
+					}
+				}
+
+				// En passant
+				if let Some(target) = self.en_passant_target
+				{
+					if target.y() == pos.y() - 1
+					{
+						if target.x() == pos.x() + 1 || target.x() + 1 == pos.x()
+						{
+							moves.push(target);
+						}
+					}
+				}
+
+				// Double move
 				if pos.y() == 6
 				{
 					moves.push(Pos::new(pos.x(), pos.y() - 2));
@@ -637,8 +919,25 @@ impl Board
 		return moves;
 	}
 
-	// TODO: CASTLING
-	//fn generate_castle_moves(&self,...)
+	pub fn is_check(&self, color: Color) -> bool
+	{
+		// TODO
+		let king_pos = self.pieces.iter().find(|piece| piece.piece_type == PieceType::King && piece.color == color).and_then(|piece| Some(piece.pos())).expect(format!("Could not find {}'s king", color).as_str());
+
+		// Iterate over all of the enemy's pieces
+		for piece in self.pieces.iter().filter(|piece| piece.color() != color)
+		{
+			for target in self.generate_legal_moves(&piece).unwrap()
+			{
+				if target == king_pos
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
 
 	pub fn is_legal_move(&self, piece: &Piece, pos: Pos) -> bool
 	{
@@ -646,7 +945,10 @@ impl Board
 		{
 			if piece_move == pos
 			{
-				return true;
+				let mut board = self.clone();
+				board.make_move(piece, pos).unwrap();
+				
+				return !board.is_check(piece.color());
 			}
 		}
 
@@ -786,7 +1088,19 @@ impl BoardRenderer
 		self.aspect = aspect;
 	}
 
-	pub fn render(&mut self, board: &Board, scale: f32, cursor: Option<Pos>)
+	pub fn render(&mut self, board: &Board, scale: f32)
+	{
+		let view_proj = self.calculate_vp_matrix(scale);
+
+		self.render_board(&view_proj, scale);
+
+		for piece in board.pieces.iter()
+		{
+			self.render_piece(&view_proj, scale, piece);
+		}
+	}
+
+	fn calculate_vp_matrix(&self, scale: f32) -> Matrix4<f32>
 	{
 		let mat_view = Matrix4::new_translation(&Vector3::<f32>::new(0.0, 0.0, -1.0));
 
@@ -796,17 +1110,7 @@ impl BoardRenderer
 
 		let view_proj = mat_proj * mat_view;
 
-		self.render_board(&view_proj, scale);
-
-		for piece in board.pieces.iter()
-		{
-			self.render_piece(&view_proj, scale, piece);
-		}
-
-		if cursor.is_some()
-		{
-			self.render_cursor(&view_proj, scale, cursor.unwrap());
-		}
+		return view_proj;
 	}
 
 	fn render_board(&mut self, view_proj: &Matrix4<f32>, scale: f32)
@@ -821,10 +1125,17 @@ impl BoardRenderer
 		self.board_program.set_uniform("mvp", &(view_proj * mat_model)).unwrap();
 		render_elements_instanced(&self.board_program, &self.mesh.vao, &self.mesh.ibo, 64);
 	}
-
-	fn render_cursor(&mut self, view_proj: &Matrix4<f32>, scale: f32, pos: Pos)
+	
+	pub fn render_square(&mut self, scale: f32, position: Pos, color: Vector4<f32>)
 	{
-		self.square_program.set_uniform("color", &Vector3::new(0.68, 0.92, 0.63)).unwrap();
+		let view_proj = self.calculate_vp_matrix(scale);
+
+		self.render_square_internal(&view_proj, scale, position, color);
+	}
+
+	fn render_square_internal(&mut self, view_proj: &Matrix4<f32>, scale: f32, pos: Pos, color: Vector4<f32>)
+	{
+		self.square_program.set_uniform("color", &color).unwrap();
 
 		let x = pos.x();
 		let y = 7 - pos.y();

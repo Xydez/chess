@@ -6,7 +6,6 @@ $ cargo run --release
 ╒════════════════════════════════╕
 │          Chess - TODO          │
 ╞════════════════════════════════╡
-│  -  Add legal moves            │
 │  -  Add rendering of legal     │
 │     moves                      │
 │  -  Begin work on AI           │
