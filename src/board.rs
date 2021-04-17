@@ -222,6 +222,18 @@ pub fn move_notation(piece: &Piece, target: Pos) -> String
 	{
 		return target.to_algebraic();
 	}
+	else if piece.piece_type() == PieceType::King && (target.x() as i32 - piece.pos().x() as i32).abs() == 2
+	{
+		// If castle
+		if target.x() > piece.pos().x()
+		{
+			return "O-O".to_string();
+		}
+		else
+		{
+			return "O-O-O".to_string();
+		}
+	}
 	else
 	{
 		return format!("{}{}", piece.to_char(), target);
@@ -494,7 +506,22 @@ impl Board
 
 		if piece.piece_type == PieceType::Rook
 		{
-			
+			if piece.pos.x() == 0
+			{
+				match piece.color
+				{
+					Color::White => { self.white_castle_queenside = false; },
+					Color::Black => { self.black_castle_queenside = false; }
+				}
+			}
+			else if piece.pos.x() == 7
+			{
+				match piece.color
+				{
+					Color::White => { self.white_castle_kingside = false; },
+					Color::Black => { self.black_castle_kingside = false; }
+				}
+			}
 		}
 
 		// Find the piece in self.pieces and mutate that
@@ -572,6 +599,11 @@ impl Board
 
 	pub fn generate_legal_moves(&self, piece: &Piece) -> Result<Vec<Pos>, ()>
 	{
+		return self.generate_legal_moves_internal(piece, true);
+	}
+
+	fn generate_legal_moves_internal(&self, piece: &Piece, with_castle: bool) -> Result<Vec<Pos>, ()>
+	{
 		if let Some(piece) = self.piece_at(piece.pos)
 		{
 			let moves = match piece.piece_type
@@ -587,7 +619,7 @@ impl Board
 					moves
 				},
 				*/
-				PieceType::King => self.generate_king_moves(piece.color, piece.pos),
+				PieceType::King => self.generate_king_moves(piece.color, piece.pos, with_castle),
 				PieceType::Knight => self.generate_knight_moves(piece.pos),
 				PieceType::Pawn => self.generate_pawn_moves(piece.color, piece.pos)
 			};
@@ -753,7 +785,7 @@ impl Board
 		return moves;
 	}
 
-	fn generate_king_moves(&self, color: Color, pos: Pos) -> Vec<Pos>
+	fn generate_king_moves(&self, color: Color, pos: Pos, with_castle: bool) -> Vec<Pos>
 	{
 		let mut moves = Vec::new();
 
@@ -773,40 +805,43 @@ impl Board
 
 		//println!("{} {} {} {}", self.black_castle_kingside, self.black_castle_queenside, self.white_castle_kingside, self.white_castle_queenside);
 
-		// TODO
-		if color == Color::Black
+		// TODO: Castling
+		if with_castle && !self.is_check(color)
 		{
-			if self.black_castle_kingside
+			if color == Color::Black
 			{
-				if self.piece_at(Pos::new(5, 0)).is_none() && self.piece_at(Pos::new(6, 0)).is_none()
+				if self.black_castle_kingside
 				{
-					moves.push(Pos::new(6, 0));
+					if self.piece_at(Pos::new(5, 0)).is_none() && self.piece_at(Pos::new(6, 0)).is_none() && !self.is_threatened(color, Pos::new(5, 0)) && !self.is_threatened(color, Pos::new(6, 0))
+					{
+						moves.push(Pos::new(6, 0));
+					}
 				}
-			}
 
-			if self.black_castle_queenside
-			{
-				if self.piece_at(Pos::new(1, 0)).is_none() && self.piece_at(Pos::new(2, 0)).is_none() && self.piece_at(Pos::new(3, 0)).is_none()
+				if self.black_castle_queenside
 				{
-					moves.push(Pos::new(2, 0));
+					if self.piece_at(Pos::new(1, 0)).is_none() && self.piece_at(Pos::new(2, 0)).is_none() && self.piece_at(Pos::new(3, 0)).is_none() && !self.is_threatened(color, Pos::new(1, 0)) && !self.is_threatened(color, Pos::new(2, 0)) && !self.is_threatened(color, Pos::new(3, 0))
+					{
+						moves.push(Pos::new(2, 0));
+					}
 				}
 			}
-		}
-		else
-		{
-			if self.white_castle_kingside
+			else
 			{
-				if self.piece_at(Pos::new(5, 7)).is_none() && self.piece_at(Pos::new(6, 7)).is_none()
+				if self.white_castle_kingside
 				{
-					moves.push(Pos::new(6, 7));
+					if self.piece_at(Pos::new(5, 7)).is_none() && self.piece_at(Pos::new(6, 7)).is_none() && !self.is_threatened(color, Pos::new(5, 7)) && !self.is_threatened(color, Pos::new(6, 7))
+					{
+						moves.push(Pos::new(6, 7));
+					}
 				}
-			}
 
-			if self.white_castle_queenside
-			{
-				if self.piece_at(Pos::new(1, 7)).is_none() && self.piece_at(Pos::new(2, 7)).is_none() && self.piece_at(Pos::new(3, 7)).is_none()
+				if self.white_castle_queenside
 				{
-					moves.push(Pos::new(2, 7));
+					if self.piece_at(Pos::new(1, 7)).is_none() && self.piece_at(Pos::new(2, 7)).is_none() && self.piece_at(Pos::new(3, 7)).is_none() && !self.is_threatened(color, Pos::new(1, 7)) && !self.is_threatened(color, Pos::new(2, 7)) && !self.is_threatened(color, Pos::new(3, 7))
+					{
+						moves.push(Pos::new(2, 7));
+					}
 				}
 			}
 		}
@@ -848,7 +883,16 @@ impl Board
 			Color::Black =>
 			{
 				// Normal move
-				moves.push(Pos::new(pos.x(), pos.y() + 1));
+				if self.piece_at(Pos::new(pos.x(), pos.y() + 1)).is_none()
+				{
+					moves.push(Pos::new(pos.x(), pos.y() + 1));
+				}
+
+				// Double move
+				if pos.y() == 1 && self.piece_at(Pos::new(pos.x(), pos.y() + 2)).is_none()
+				{
+					moves.push(Pos::new(pos.x(), pos.y() + 2));
+				}
 
 				// Capture
 				if pos.x() > 0
@@ -884,17 +928,20 @@ impl Board
 						}
 					}
 				}
-
-				// Double move
-				if pos.y() == 1
-				{
-					moves.push(Pos::new(pos.x(), pos.y() + 2));
-				}
 			},
 			Color::White =>
 			{
 				// Normal move
-				moves.push(Pos::new(pos.x(), pos.y() - 1));
+				if self.piece_at(Pos::new(pos.x(), pos.y() - 1)).is_none()
+				{
+					moves.push(Pos::new(pos.x(), pos.y() - 1));
+				}
+
+				// Double move
+				if pos.y() == 6 && self.piece_at(Pos::new(pos.x(), pos.y() - 2)).is_none()
+				{
+					moves.push(Pos::new(pos.x(), pos.y() - 2));
+				}
 
 				// Capture
 				if pos.x() > 0
@@ -930,12 +977,6 @@ impl Board
 						}
 					}
 				}
-
-				// Double move
-				if pos.y() == 6
-				{
-					moves.push(Pos::new(pos.x(), pos.y() - 2));
-				}
 			}
 		}
 
@@ -965,6 +1006,7 @@ impl Board
 
 				if !board.is_check(color)
 				{
+					println!("NOT CHECKMATE ({})", move_notation(piece, piece_move));
 					return false;
 				}
 			}
@@ -978,7 +1020,7 @@ impl Board
 		// Iterate over all of the pieces
 		for piece in self.pieces.iter().filter(|piece| piece.color() != color)
 		{
-			for target in self.generate_legal_moves(&piece).unwrap()
+			for target in self.generate_legal_moves_internal(&piece, false).unwrap()
 			{
 				if target == pos
 				{
