@@ -726,7 +726,14 @@ impl Board
 				break;
 			}
 
-			moves.push(Pos::new(x as u8, y as u8));
+			let move_pos = Pos::new(x as u8, y as u8);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+
+			moves.push(move_pos);
 
 			i += 1;
 		}
@@ -743,7 +750,14 @@ impl Board
 				break;
 			}
 
-			moves.push(Pos::new(x as u8, y as u8));
+			let move_pos = Pos::new(x as u8, y as u8);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+
+			moves.push(move_pos);
 
 			i += 1;
 		}
@@ -760,7 +774,14 @@ impl Board
 				break;
 			}
 
-			moves.push(Pos::new(x as u8, y as u8));
+			let move_pos = Pos::new(x as u8, y as u8);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+
+			moves.push(move_pos);
 
 			i += 1;
 		}
@@ -777,7 +798,14 @@ impl Board
 				break;
 			}
 
-			moves.push(Pos::new(x as u8, y as u8));
+			let move_pos = Pos::new(x as u8, y as u8);
+
+			if self.piece_at(move_pos).is_some()
+			{
+				break;
+			}
+
+			moves.push(move_pos);
 
 			i += 1;
 		}
