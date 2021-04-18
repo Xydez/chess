@@ -9,12 +9,18 @@ extern crate rodio;
 
 mod board;
 mod renderer;
+#[cfg(feature = "use_ai")]
+mod ai;
 
 use self::glfw::{ Context, Key, Action };
 use nalgebra::{ Matrix4, Vector4, Vector3 };
 use rodio::{ source::SamplesConverter, Decoder, OutputStream, OutputStreamHandle, source::Source };
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Write;
+
+use std::thread::JoinHandle;
+use std::sync::mpsc::{ Sender, Receiver };
 
 use board::*;
 use renderer::*;
@@ -25,6 +31,14 @@ const WINDOW_HEIGHT: u32 = 480;
 const WINDOW_TITLE: &'static str = "Chess";
 
 //#[derive(Debug)]
+#[cfg(feature = "use_ai")]
+struct WorkerThread
+{
+	sender: Sender<Board>,
+	receiver: Receiver<(Piece, Pos)>,
+	join_handle: JoinHandle<()>
+}
+
 struct GameInfo
 {
 	last_time: f64,
@@ -35,14 +49,28 @@ struct GameInfo
 	hover: Option<Pos>,
 	press_pos: Option<Pos>,
 	from_piece: Option<Piece>,
-	stream: OutputStreamHandle
+	stream: OutputStreamHandle,
+
+	#[cfg(feature = "use_ai")]
+	worker_thread: WorkerThread
 }
 
 impl GameInfo
 {
-	fn update(&self, _delta_time: f64)
+	fn update(&mut self, _delta_time: f64)
 	{
-
+		#[cfg(feature = "use_ai")]
+		match self.worker_thread.receiver.try_recv()
+		{
+			Ok((piece, piece_move)) =>
+			{
+				self.board.make_move(&piece, piece_move).unwrap();
+				self.board.active_color = self.board.active_color.opposite();
+				self.play_move_sound();
+			},
+			Err(std::sync::mpsc::TryRecvError::Empty) => (),
+			Err(std::sync::mpsc::TryRecvError::Disconnected) => panic!("Worker thread disconnected!")
+		}
 	}
 
 	fn render(&mut self)
@@ -87,6 +115,12 @@ impl GameInfo
 		{
 			self.board_renderer.render_square(self.board_scale as f32, self.board.find_pieces(Some(PieceType::King), Some(Color::Black), None).first().unwrap().pos(), check_color);
 		}
+	}
+
+	fn play_move_sound(&self)
+	{
+		let source = Decoder::new(BufReader::new(File::open("assets/sounds/move.wav").unwrap())).unwrap().convert_samples();
+		self.stream.play_raw(source).unwrap();
 	}
 }
 
@@ -135,6 +169,65 @@ fn main() {
 
 	let (_stream, stream_handle) = OutputStream::try_default().expect("Could not find an audio device");
 
+	#[cfg(feature = "use_ai")]
+	let (to_thread, from_main) = std::sync::mpsc::channel::<Board>();
+
+	#[cfg(feature = "use_ai")]
+	let (to_main, from_thread) = std::sync::mpsc::channel::<(Piece, Pos)>();
+
+	#[cfg(feature = "use_ai")]
+	let handle = std::thread::spawn(move || {
+		for board in from_main
+		{
+			let mut possible_moves = Vec::new();
+
+			for piece in board.pieces().iter()
+			{
+				if piece.color() != board.active_color
+				{
+					continue;
+				}
+				
+				for piece_move in board.generate_legal_moves(&piece).unwrap()
+				{
+					possible_moves.push((piece, piece_move));
+				}
+			}
+
+			let mut i = 0;
+			let mut best_eval = f32::NEG_INFINITY;
+			let mut moves_list = possible_moves.iter().map(|(piece, piece_move)|
+			{
+				let mut board_clone = board.clone();
+				board_clone.make_move(piece, *piece_move).unwrap();
+				board_clone.active_color = board.active_color.opposite();
+
+				i += 1;
+				print!("\rEvaluating {}/{} moves", i, possible_moves.len());
+				std::io::stdout().flush().unwrap();
+
+				let eval = ai::alpha_beta(board_clone, 4, f32::NEG_INFINITY, -best_eval, true);
+				best_eval = best_eval.max(eval);
+
+				return (eval, **piece, *piece_move);
+			})
+			.filter(|(_, piece, piece_move)| board.is_legal_move(piece, *piece_move))
+			.collect::<Vec<(f32, Piece, Pos)>>();
+			moves_list.sort_by(|(a, _, _), (b, _, _)| (*b).partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+
+			println!("");
+
+			if let Some((eval, piece, target)) = moves_list.last()
+			{
+				to_main.send((*piece, *target)).expect("Failed to return move from thread");
+			}
+			else
+			{
+				println!("CHECKMATED");
+			}
+		}
+	});
+
 	let mut info = GameInfo {
 		last_time: glfw.get_time(),
 		board,
@@ -144,7 +237,13 @@ fn main() {
 		hover: None,
 		press_pos: None,
 		from_piece: None,
-		stream: stream_handle
+		stream: stream_handle,
+		#[cfg(feature = "use_ai")]
+		worker_thread: WorkerThread {
+			sender: to_thread,
+			receiver: from_thread,
+			join_handle: handle
+		}
 	};
 
 	while !window.should_close()
@@ -244,10 +343,17 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 						return;
 					}
 
+					#[cfg(feature = "use_ai")]
+					if info.board.active_color != Color::White
+					{
+						return;
+					}
+
 					match info.from_piece
 					{
 						Some(from_piece) =>
 						{
+							// We made a move
 							if from_piece.pos() != hover
 							{
 								// Check if move is legal
@@ -258,37 +364,26 @@ fn process_event(info: &mut GameInfo, window: &mut glfw::Window, event: &glfw::W
 									return;
 								}
 
-								// Check if can capture first
-								/*
-								if let Some(piece) = info.board.piece_at(hover)
-								{
-									if piece.color() == from_piece.color()
-									{
-										println!("Cannot capture piece {} at {} because it is the same color ({:?})", piece, piece.pos(), piece.color());
-										info.from_piece = Some(piece);
-										return;
-									}
-									else
-									{
-										let captured = info.board.remove_at(hover).unwrap();
-
-										println!("Captured piece {} (at {})", captured, captured.pos());
-									}
-								}
-								*/
-
 								info.board.make_move(&from_piece, hover).expect(format!("Failed to make move {}{} (from {})", from_piece, hover, from_piece.pos()).as_str());
 								info.board.active_color = from_piece.color().opposite();
 
-								let source = Decoder::new(BufReader::new(File::open("assets/sounds/move.wav").unwrap())).unwrap().convert_samples();
-	
-								info.stream.play_raw(source).unwrap();
+								info.play_move_sound();
+
 								println!("{} made move {}", from_piece.color(), move_notation(&from_piece, hover));
 
 								if info.board.is_checkmate(info.board.active_color)
 								{
 									println!("CHECKMATE");
 								}
+
+								/* EVALUATE */
+								#[cfg(feature = "use_ai")]
+								{
+									info.worker_thread.sender.send(info.board.clone()).expect("Failed to send board to worker thread");
+								}
+								
+								//println!("eval = {} (for {})", eval, info.board.active_color);
+								/* EVALUATE */
 							}		
 
 							info.from_piece = None;

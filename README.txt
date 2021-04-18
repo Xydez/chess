@@ -6,13 +6,9 @@ $ cargo run --release
 ╒════════════════════════════════╕
 │          Chess - TODO          │
 ╞════════════════════════════════╡
-│  -  Optional feature to bake   │
-│     assets into executable     │
-│  -  Drag n' drop               │
 │  -  Add rendering of legal     │
 │     moves                      │
 │  -  Begin work on AI           │
 └────────────────────────────────┘
 
-https://github.com/bwasty/learn-opengl-rs/blob/master/src/_1_getting_started/_4_1_textures.rs
-https://learnopengl.com/Getting-started/Textures
+Chess pieces are grabbed from https://en.wikipedia.org/wiki/Chess_piece and are licensed by Colin M.L. Burnett under the GNU General Public License which can be found at https://www.gnu.org/licenses/gpl-3.0.html.
