@@ -1,0 +1,9 @@
+# Enable unstable features
+unstable_features = true
+
+# Format rules
+hard_tabs = true
+newline_style = "Windows"
+match_block_trailing_comma = true
+trailing_comma = "Never"
+match_arm_blocks = false

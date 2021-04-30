@@ -39,14 +39,14 @@ macro_rules! gl {
 
 pub enum Event {
 	Resize(u32, u32),
-	Key(glfw::Key, glfw::Action, glfw::Modifiers),
+	Key(glfw::Key, glfw::Action, glfw::Modifiers)
 }
 
 pub struct Window {
 	glfw: glfw::Glfw,
 	window: glfw::Window,
 	events: std::sync::mpsc::Receiver<(f64, glfw::WindowEvent)>,
-	event_callback: Option<Box<dyn Fn(Event)>>,
+	event_callback: Option<Box<dyn Fn(Event)>>
 }
 
 impl Window {
@@ -60,7 +60,7 @@ impl Window {
 
 		// Use the OpenGL core profile
 		glfw.window_hint(glfw::WindowHint::OpenGlProfile(
-			glfw::OpenGlProfileHint::Core,
+			glfw::OpenGlProfileHint::Core
 		));
 
 		#[cfg(debug_assertions)]
@@ -78,7 +78,7 @@ impl Window {
 
 		glfw.set_error_callback(Some(glfw::Callback {
 			f: error_callback,
-			data: std::cell::Cell::new(0),
+			data: std::cell::Cell::new(0)
 		}));
 
 		gl!(gl::load_with(|s| window.get_proc_address(s)););
@@ -87,7 +87,7 @@ impl Window {
 			glfw,
 			window,
 			events,
-			event_callback: None,
+			event_callback: None
 		};
 	}
 
@@ -112,21 +112,21 @@ impl Window {
 					match &mut self.event_callback {
 						Some(callback) => {
 							callback(Event::Key(key, action, modifiers));
-						}
-						None => (),
+						},
+						None => ()
 					}
-				}
+				},
 				glfw::WindowEvent::FramebufferSize(width, height) => {
 					assert!(width >= 0 && height >= 0);
 
 					match &mut self.event_callback {
 						Some(callback) => {
 							callback(Event::Resize(width as u32, height as u32));
-						}
-						None => (),
+						},
+						None => ()
 					}
-				}
-				_ => (),
+				},
+				_ => ()
 			}
 		}
 	}
@@ -143,7 +143,7 @@ impl Window {
 pub fn render_arrays(
 	shader_program: &ShaderProgram,
 	vertex_array: &VertexArray,
-	vertex_count: usize,
+	vertex_count: usize
 ) //, index_buffer: Option<IndexBuffer>
 {
 	// if index_buffer.is_some()
@@ -158,7 +158,7 @@ pub fn render_arrays(
 pub fn render_elements(
 	shader_program: &ShaderProgram,
 	vertex_array: &VertexArray,
-	index_buffer: &IndexBuffer,
+	index_buffer: &IndexBuffer
 ) {
 	unsafe {
 		shader_program.bind();
@@ -173,7 +173,7 @@ pub fn render_arrays_instanced(
 	shader_program: &ShaderProgram,
 	vertex_array: &VertexArray,
 	vertex_count: usize,
-	instances: usize,
+	instances: usize
 ) //, index_buffer: Option<IndexBuffer>
 {
 	// if index_buffer.is_some()
@@ -189,7 +189,7 @@ pub fn render_elements_instanced(
 	shader_program: &ShaderProgram,
 	vertex_array: &VertexArray,
 	index_buffer: &IndexBuffer,
-	instances: usize,
+	instances: usize
 ) {
 	unsafe {
 		shader_program.bind();
@@ -203,7 +203,7 @@ pub fn render_elements_instanced(
 #[derive(Debug)]
 pub struct IndexBuffer {
 	handle: gl::types::GLuint,
-	count: usize,
+	count: usize
 }
 
 impl Drop for IndexBuffer {
@@ -229,7 +229,7 @@ impl IndexBuffer {
 
 		return IndexBuffer {
 			handle,
-			count: indices.len(),
+			count: indices.len()
 		};
 	}
 
@@ -254,18 +254,18 @@ pub enum VertexBufferElement {
 	U16,
 	I16,
 	U8,
-	I8,
+	I8
 }
 
 #[derive(Debug)]
 pub struct VertexArray {
-	handle: gl::types::GLuint,
+	handle: gl::types::GLuint
 }
 
 impl VertexArray {
 	pub fn new(
 		vertex_buffer: &VertexBuffer,
-		layout: &Vec<(VertexBufferElement, usize)>,
+		layout: &Vec<(VertexBufferElement, usize)>
 	) -> VertexArray {
 		assert!(layout.len() <= u32::MAX as usize);
 
@@ -285,7 +285,7 @@ impl VertexArray {
 				VertexBufferElement::Float => 4,
 				VertexBufferElement::U32 | VertexBufferElement::I32 => 4,
 				VertexBufferElement::U16 | VertexBufferElement::I16 => 2,
-				VertexBufferElement::U8 | VertexBufferElement::I8 => 1,
+				VertexBufferElement::U8 | VertexBufferElement::I8 => 1
 			};
 
 			stride += size * count;
@@ -303,14 +303,14 @@ impl VertexArray {
 				VertexBufferElement::U16 => gl::UNSIGNED_SHORT,
 				VertexBufferElement::I16 => gl::SHORT,
 				VertexBufferElement::U8 => gl::UNSIGNED_BYTE,
-				VertexBufferElement::I8 => gl::BYTE,
+				VertexBufferElement::I8 => gl::BYTE
 			};
 
 			let size = match element {
 				VertexBufferElement::Float => 4,
 				VertexBufferElement::U32 | VertexBufferElement::I32 => 4,
 				VertexBufferElement::U16 | VertexBufferElement::I16 => 2,
-				VertexBufferElement::U8 | VertexBufferElement::I8 => 1,
+				VertexBufferElement::U8 | VertexBufferElement::I8 => 1
 			};
 
 			unsafe {
@@ -341,7 +341,7 @@ impl VertexArray {
 #[derive(Debug)]
 pub struct VertexBuffer {
 	handle: gl::types::GLuint,
-	size: usize,
+	size: usize
 }
 
 impl Drop for VertexBuffer {
@@ -367,7 +367,7 @@ impl VertexBuffer {
 
 		return VertexBuffer {
 			handle,
-			size: vertices.len() * std::mem::size_of::<f32>(),
+			size: vertices.len() * std::mem::size_of::<f32>()
 		};
 	}
 
@@ -395,32 +395,32 @@ pub enum ShaderError {
 	Link(String),
 	InvalidType,
 	MissingShader(ShaderType),
-	UniformNotFound,
+	UniformNotFound
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum ShaderType {
 	Vertex,
 	Fragment,
-	Geometry, // Compute (requires OpenGL 4.3 or ARB_compute_shader)
+	Geometry // Compute (requires OpenGL 4.3 or ARB_compute_shader)
 }
 
 #[derive(Debug, Clone)]
 pub struct ShaderSource {
-	source: String,
+	source: String
 }
 
 impl ShaderSource {
 	pub fn new(source: &str) -> ShaderSource {
 		return ShaderSource {
-			source: String::from(source),
+			source: String::from(source)
 		};
 	}
 
 	pub fn load(path: &str) -> std::io::Result<ShaderSource> {
 		return match std::fs::read_to_string(path) {
 			Ok(source) => Ok(ShaderSource { source }),
-			Err(err) => Err(err),
+			Err(err) => Err(err)
 		};
 	}
 
@@ -428,7 +428,7 @@ impl ShaderSource {
 		let type_gl_enum = match shader_type {
 			ShaderType::Vertex => gl::VERTEX_SHADER,
 			ShaderType::Fragment => gl::FRAGMENT_SHADER,
-			ShaderType::Geometry => gl::GEOMETRY_SHADER,
+			ShaderType::Geometry => gl::GEOMETRY_SHADER
 		};
 
 		let handle;
@@ -452,7 +452,7 @@ impl ShaderSource {
 		{
 			return Ok(Shader {
 				handle,
-				shader_type,
+				shader_type
 			});
 		} else {
 			let mut len = 0;
@@ -471,7 +471,7 @@ impl ShaderSource {
 			}
 
 			return Err(ShaderError::Compile(
-				error_str.to_string_lossy().into_owned(),
+				error_str.to_string_lossy().into_owned()
 			));
 		}
 	}
@@ -479,7 +479,7 @@ impl ShaderSource {
 
 pub struct Shader {
 	handle: gl::types::GLuint,
-	shader_type: ShaderType,
+	shader_type: ShaderType
 }
 
 impl Drop for Shader {
@@ -493,7 +493,7 @@ impl Drop for Shader {
 pub struct ShaderProgramBuilder {
 	vertex: Option<Shader>,
 	fragment: Option<Shader>,
-	geometry: Option<Shader>,
+	geometry: Option<Shader>
 }
 
 impl ShaderProgramBuilder {
@@ -501,7 +501,7 @@ impl ShaderProgramBuilder {
 		return ShaderProgramBuilder {
 			vertex: None,
 			fragment: None,
-			geometry: None,
+			geometry: None
 		};
 	}
 
@@ -579,7 +579,7 @@ impl ShaderProgramBuilder {
 		if success == 1 {
 			return Ok(ShaderProgram {
 				handle,
-				location_cache: HashMap::new(),
+				location_cache: HashMap::new()
 			});
 		} else {
 			let mut len = 0;
@@ -627,7 +627,7 @@ impl Uniform for i32 {
 #[derive(Debug)]
 pub struct ShaderProgram {
 	handle: gl::types::GLuint,
-	location_cache: HashMap<String, gl::types::GLint>,
+	location_cache: HashMap<String, gl::types::GLint>
 }
 
 impl ShaderProgram {
@@ -649,7 +649,7 @@ impl ShaderProgram {
 				}
 
 				return Ok(());
-			}
+			},
 			None => {
 				let c_name = std::ffi::CString::new(name).unwrap();
 				let id = unsafe {
@@ -684,7 +684,7 @@ impl Drop for ShaderProgram {
 
 #[derive(Debug)]
 pub struct Texture {
-	handle: gl::types::GLuint,
+	handle: gl::types::GLuint
 }
 
 const OPENGL_SLOT_LIMIT: u32 = 16;
@@ -788,7 +788,7 @@ impl Uniform for Texture {
 pub struct Mesh {
 	pub vao: VertexArray,
 	pub vbo: VertexBuffer,
-	pub ibo: IndexBuffer,
+	pub ibo: IndexBuffer
 }
 
 impl Mesh {
@@ -804,7 +804,7 @@ impl Mesh {
 	pub fn with_layout(
 		vertices: &Vec<f32>,
 		indices: &Vec<u32>,
-		layout: &Vec<(VertexBufferElement, usize)>,
+		layout: &Vec<(VertexBufferElement, usize)>
 	) -> Mesh {
 		let mut layout_len = 0;
 		for (_, size) in layout.iter() {

@@ -103,7 +103,7 @@ fn piece_value(piece: &Piece) -> f32 {
 		PieceType::Bishop => 3.0,
 		PieceType::Rook => 5.0,
 		PieceType::Queen => 7.0,
-		PieceType::King => 0.0,
+		PieceType::King => 0.0
 	};
 }
 

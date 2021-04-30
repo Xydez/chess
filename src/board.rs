@@ -7,7 +7,7 @@ use std::path::Path;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Pos {
-	pub value: u8,
+	pub value: u8
 }
 
 impl std::fmt::Display for Pos {
@@ -71,7 +71,7 @@ pub enum PieceType {
 	Knight,
 	Bishop,
 	Queen,
-	King,
+	King
 }
 
 impl std::fmt::Display for PieceType {
@@ -82,7 +82,7 @@ impl std::fmt::Display for PieceType {
 			PieceType::Knight => write!(f, "Knight"),
 			PieceType::Bishop => write!(f, "Bishop"),
 			PieceType::Queen => write!(f, "Queen"),
-			PieceType::King => write!(f, "King"),
+			PieceType::King => write!(f, "King")
 		};
 	}
 }
@@ -92,14 +92,14 @@ impl PieceType {}
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub enum Color {
 	White,
-	Black,
+	Black
 }
 
 impl std::fmt::Display for Color {
 	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
 		return match self {
 			Color::White => write!(f, "White"),
-			Color::Black => write!(f, "Black"),
+			Color::Black => write!(f, "Black")
 		};
 	}
 }
@@ -108,7 +108,7 @@ impl Color {
 	pub fn opposite(&self) -> Color {
 		return match self {
 			Color::Black => Color::White,
-			Color::White => Color::Black,
+			Color::White => Color::Black
 		};
 	}
 }
@@ -117,7 +117,7 @@ impl Color {
 pub struct Piece {
 	piece_type: PieceType,
 	color: Color,
-	pos: Pos,
+	pos: Pos
 }
 
 impl std::fmt::Display for Piece {
@@ -133,7 +133,7 @@ impl Piece {
 		return Piece {
 			piece_type,
 			color,
-			pos,
+			pos
 		};
 	}
 
@@ -151,7 +151,7 @@ impl Piece {
 			'p' => Ok(PieceType::Pawn),
 			'q' => Ok(PieceType::Queen),
 			'r' => Ok(PieceType::Rook),
-			_ => Err(()),
+			_ => Err(())
 		};
 
 		if piece_type.is_err() {
@@ -168,12 +168,12 @@ impl Piece {
 			PieceType::Knight => 'n',
 			PieceType::Pawn => 'p',
 			PieceType::Queen => 'q',
-			PieceType::Rook => 'r',
+			PieceType::Rook => 'r'
 		};
 
 		return match self.color {
 			Color::White => letter.to_ascii_uppercase(),
-			Color::Black => letter.to_ascii_lowercase(),
+			Color::Black => letter.to_ascii_lowercase()
 		};
 	}
 
@@ -217,7 +217,7 @@ pub struct Board {
 	white_castle_queenside: bool,
 	en_passant_target: Option<Pos>,
 	halfmove_clock: usize,
-	fullmove_clock: usize,
+	fullmove_clock: usize
 }
 
 impl Board {
@@ -231,7 +231,7 @@ impl Board {
 			white_castle_queenside: false,
 			en_passant_target: None,
 			halfmove_clock: 0,
-			fullmove_clock: 0,
+			fullmove_clock: 0
 		};
 	}
 
@@ -273,7 +273,7 @@ impl Board {
 		let color = match parts[1] {
 			"w" => Ok(Color::White),
 			"b" => Ok(Color::Black),
-			_ => Err(()),
+			_ => Err(())
 		};
 
 		if color.is_err() {
@@ -288,16 +288,16 @@ impl Board {
 				match c {
 					'K' => {
 						board.white_castle_kingside = true;
-					}
+					},
 					'Q' => {
 						board.white_castle_queenside = true;
-					}
+					},
 					'k' => {
 						board.black_castle_kingside = true;
-					}
+					},
 					'q' => {
 						board.black_castle_queenside = true;
-					}
+					},
 					_ => {
 						return Err(());
 					}
@@ -366,7 +366,7 @@ impl Board {
 		&self,
 		piece_type: Option<PieceType>,
 		color: Option<Color>,
-		position: Option<Pos>,
+		position: Option<Pos>
 	) -> Vec<&Piece> {
 		return self
 			.pieces
@@ -427,7 +427,7 @@ impl Board {
 					match target_piece.color() {
 						Color::White => {
 							self.white_castle_queenside = false;
-						}
+						},
 						Color::Black => {
 							self.black_castle_queenside = false;
 						}
@@ -436,7 +436,7 @@ impl Board {
 					match target_piece.color() {
 						Color::White => {
 							self.white_castle_kingside = false;
-						}
+						},
 						Color::Black => {
 							self.black_castle_kingside = false;
 						}
@@ -456,7 +456,7 @@ impl Board {
 				Color::White => {
 					self.white_castle_kingside = false;
 					self.white_castle_queenside = false;
-				}
+				},
 				Color::Black => {
 					self.black_castle_kingside = false;
 					self.black_castle_queenside = false;
@@ -467,7 +467,7 @@ impl Board {
 				match piece.color {
 					Color::White => {
 						self.white_castle_queenside = false;
-					}
+					},
 					Color::Black => {
 						self.black_castle_queenside = false;
 					}
@@ -476,7 +476,7 @@ impl Board {
 				match piece.color {
 					Color::White => {
 						self.white_castle_kingside = false;
-					}
+					},
 					Color::Black => {
 						self.black_castle_kingside = false;
 					}
@@ -515,7 +515,7 @@ impl Board {
 					// Promote pawns
 					let last_rank = match piece.color {
 						Color::Black => 7,
-						Color::White => 0,
+						Color::White => 0
 					};
 
 					if target.y() == last_rank {
@@ -527,7 +527,7 @@ impl Board {
 						if move_diff_y.abs() == 2 {
 							self.en_passant_target = Some(Pos::new(
 								piece.pos.x(),
-								(piece.pos.y() as i32 + move_diff_y / 2) as u8,
+								(piece.pos.y() as i32 + move_diff_y / 2) as u8
 							));
 							return Ok(());
 						} else if let Some(en_passant_target) = self.en_passant_target {
@@ -537,13 +537,13 @@ impl Board {
 									Color::Black => {
 										self.remove_at(Pos::new(
 											en_passant_target.x(),
-											en_passant_target.y() - 1,
+											en_passant_target.y() - 1
 										))?;
-									}
+									},
 									Color::White => {
 										self.remove_at(Pos::new(
 											en_passant_target.x(),
-											en_passant_target.y() + 1,
+											en_passant_target.y() + 1
 										))?;
 									}
 								}
@@ -567,7 +567,7 @@ impl Board {
 	fn generate_legal_moves_internal(
 		&self,
 		piece: &Piece,
-		with_castle: bool,
+		with_castle: bool
 	) -> Result<Vec<Pos>, ()> {
 		if let Some(piece) = self.piece_at(piece.pos) {
 			let moves = match piece.piece_type {
@@ -588,7 +588,7 @@ impl Board {
 				*/
 				PieceType::King => self.generate_king_moves(piece.color, piece.pos, with_castle),
 				PieceType::Knight => self.generate_knight_moves(piece.pos),
-				PieceType::Pawn => self.generate_pawn_moves(piece.color, piece.pos),
+				PieceType::Pawn => self.generate_pawn_moves(piece.color, piece.pos)
 			};
 
 			// Filter the moves
@@ -886,7 +886,7 @@ impl Board {
 						}
 					}
 				}
-			}
+			},
 			Color::White => {
 				// Normal move
 				if self.piece_at(Pos::new(pos.x(), pos.y() - 1)).is_none() {
@@ -990,12 +990,12 @@ impl Board {
 #[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
 struct PieceInfo {
 	color: Color,
-	piece_type: PieceType,
+	piece_type: PieceType
 }
 
 #[derive(Debug)]
 struct PieceTextures {
-	texture_map: HashMap<(Color, PieceType), Texture>,
+	texture_map: HashMap<(Color, PieceType), Texture>
 }
 
 impl PieceTextures {
@@ -1004,52 +1004,52 @@ impl PieceTextures {
 
 		texture_map.insert(
 			(Color::White, PieceType::Bishop),
-			Texture::load(Path::new("assets/textures/lb.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/lb.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::White, PieceType::King),
-			Texture::load(Path::new("assets/textures/lk.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/lk.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::White, PieceType::Knight),
-			Texture::load(Path::new("assets/textures/ln.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/ln.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::White, PieceType::Pawn),
-			Texture::load(Path::new("assets/textures/lp.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/lp.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::White, PieceType::Queen),
-			Texture::load(Path::new("assets/textures/lq.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/lq.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::White, PieceType::Rook),
-			Texture::load(Path::new("assets/textures/lr.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/lr.png")).unwrap()
 		);
 
 		texture_map.insert(
 			(Color::Black, PieceType::Bishop),
-			Texture::load(Path::new("assets/textures/db.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/db.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::Black, PieceType::King),
-			Texture::load(Path::new("assets/textures/dk.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/dk.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::Black, PieceType::Knight),
-			Texture::load(Path::new("assets/textures/dn.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/dn.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::Black, PieceType::Pawn),
-			Texture::load(Path::new("assets/textures/dp.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/dp.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::Black, PieceType::Queen),
-			Texture::load(Path::new("assets/textures/dq.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/dq.png")).unwrap()
 		);
 		texture_map.insert(
 			(Color::Black, PieceType::Rook),
-			Texture::load(Path::new("assets/textures/dr.png")).unwrap(),
+			Texture::load(Path::new("assets/textures/dr.png")).unwrap()
 		);
 
 		return PieceTextures { texture_map };
@@ -1068,7 +1068,7 @@ pub struct BoardRenderer {
 	square_program: ShaderProgram,
 	texture_program: ShaderProgram,
 	piece_textures: PieceTextures,
-	aspect: f32,
+	aspect: f32
 }
 
 impl Uniform for Vector3<f32> {
@@ -1098,7 +1098,7 @@ impl BoardRenderer {
 				ShaderSource::load("assets/shaders/board_vertex.glsl")
 					.unwrap()
 					.compile(ShaderType::Vertex)
-					.unwrap(),
+					.unwrap()
 			)
 			.fragment(fragment.clone().compile(ShaderType::Fragment).unwrap())
 			.build()
@@ -1109,7 +1109,7 @@ impl BoardRenderer {
 				ShaderSource::load("assets/shaders/square_vertex.glsl")
 					.unwrap()
 					.compile(ShaderType::Vertex)
-					.unwrap(),
+					.unwrap()
 			)
 			.fragment(fragment.compile(ShaderType::Fragment).unwrap())
 			.build()
@@ -1120,13 +1120,13 @@ impl BoardRenderer {
 				ShaderSource::load("assets/shaders/texture_vertex.glsl")
 					.unwrap()
 					.compile(ShaderType::Vertex)
-					.unwrap(),
+					.unwrap()
 			)
 			.fragment(
 				ShaderSource::load("assets/shaders/texture_fragment.glsl")
 					.unwrap()
 					.compile(ShaderType::Fragment)
-					.unwrap(),
+					.unwrap()
 			)
 			.build()
 			.unwrap();
@@ -1136,7 +1136,7 @@ impl BoardRenderer {
 				&vec![
 					-1.00, -0.75, 0.0, -0.75, -0.75, 0.0, -0.75, -1.00, 0.0, -1.00, -1.00, 0.0,
 				],
-				&vec![0, 1, 2, 0, 2, 3],
+				&vec![0, 1, 2, 0, 2, 3]
 			),
 			texture_mesh: Mesh::with_layout(
 				&vec![
@@ -1147,13 +1147,13 @@ impl BoardRenderer {
 				&vec![
 					(VertexBufferElement::Float, 3),
 					(VertexBufferElement::Float, 2),
-				],
+				]
 			),
 			board_program,
 			square_program,
 			texture_program,
 			piece_textures: PieceTextures::new(),
-			aspect,
+			aspect
 		};
 	}
 
@@ -1212,7 +1212,7 @@ impl BoardRenderer {
 		view_proj: &Matrix4<f32>,
 		scale: f32,
 		pos: Pos,
-		color: Vector4<f32>,
+		color: Vector4<f32>
 	) {
 		self.square_program.set_uniform("color", &color).unwrap();
 
@@ -1233,7 +1233,7 @@ impl BoardRenderer {
 				"u_texture_in",
 				self.piece_textures
 					.get(piece)
-					.expect("Piece texture not implemented!"),
+					.expect("Piece texture not implemented!")
 			)
 			.unwrap();
 
@@ -1248,7 +1248,7 @@ impl BoardRenderer {
 		render_elements(
 			&self.texture_program,
 			&self.texture_mesh.vao,
-			&self.texture_mesh.ibo,
+			&self.texture_mesh.ibo
 		);
 	}
 }
